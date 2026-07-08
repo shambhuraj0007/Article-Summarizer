@@ -5,11 +5,11 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const AuthRouter = require('./Routes/AuthRouter');
-const ProductRouter = require('./Routes/ProductRouter');
-const SummaryRouter = require('./Routes/SummaryRouter');
+const AuthRouter = require('./_Routes/AuthRouter');
+const ProductRouter = require('./_Routes/ProductRouter');
+const SummaryRouter = require('./_Routes/SummaryRouter');
 
-require('./Models/db');
+require('./_Models/db');
 
 const PORT = process.env.PORT || 8080;
 
@@ -70,7 +70,7 @@ app.use('/summaries', SummaryRouter);
 
 // Comprehensive diagnostic endpoint
 app.get('/api/diagnostics', async (req, res) => {
-  const aiService = require('./Services/aiService');
+  const aiService = require('./_Services/aiService');
   
   const diagnostics = {
     timestamp: new Date().toISOString(),
@@ -101,7 +101,7 @@ app.get('/api/diagnostics', async (req, res) => {
 
 // Test AI with detailed logging
 app.get('/api/test-ai', async (req, res) => {
-  const aiService = require('./Services/aiService');
+  const aiService = require('./_Services/aiService');
   
   console.log('\n🧪 Running AI service test...');
   

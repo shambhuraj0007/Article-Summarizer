@@ -1,7 +1,7 @@
-const Summary = require('../Models/Summary');
-const aiService = require('../Services/aiService');
-const queueService = require('../Services/queueService');
-const extractionService = require('../Services/extractionService'); // Only for URL extraction
+const Summary = require('../_Models/Summary');
+const aiService = require('../_Services/aiService');
+const queueService = require('../_Services/queueService');
+const extractionService = require('../_Services/extractionService'); // Only for URL extraction
 
 // Generate AI Summary with comprehensive error handling
 const generateAISummary = async (req, res) => {

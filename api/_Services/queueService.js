@@ -1,5 +1,5 @@
 const aiService = require('./aiService');
-const Summary = require('../Models/Summary');
+const Summary = require('../_Models/Summary');
 
 class QueueService {
   constructor() {

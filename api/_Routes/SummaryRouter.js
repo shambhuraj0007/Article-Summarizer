@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const ensureAuthenticated = require('../Middlewares/Auth');
+const ensureAuthenticated = require('../_Middlewares/Auth');
 const {
   generateAISummary,
   createSummary,
@@ -13,7 +13,7 @@ const {
   getJobStatus,
   getQueueStats,
   summarizeFromURL
-} = require('../Controllers/SummaryController');
+} = require('../_Controllers/SummaryController');
 
 // Test route (no auth required for debugging)
 router.get('/test', (req, res) => {
