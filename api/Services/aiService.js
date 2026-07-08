@@ -1,64 +1,75 @@
-const axios = require('axios');
+const axios = require("axios");
 
 class AIService {
   constructor() {
     // Load and validate API key immediately
     this.apiKey = this.loadApiKey();
-    this.baseURL = 'https://openrouter.ai/api/v1';
-    this.model = 'deepseek/deepseek-chat-v3-0324'; // Best free model
+    this.baseURL = "https://openrouter.ai/api/v1";
+    this.model = "deepseek/deepseek-chat-v3-0324"; // Best free model
     this.initialized = false;
-    
+
     // Rate limiting tracking
     this.lastRequestTime = 0;
     this.minRequestInterval = 2000; // 2 seconds between requests
     this.rateLimitResetTime = null;
-    
-    // Initialize and validate
-    this.initialize();
+
+    // Do not auto-initialize here to avoid network calls at startup when
+    // the API key or network may be unavailable. Initialization will be
+    // performed on-demand (e.g., diagnostics or test routes).
   }
 
   loadApiKey() {
     const key = process.env.OPENROUTER_API_KEY;
-    
+
     if (!key) {
-      console.error('❌ OPENROUTER_API_KEY not found in environment variables');
+      console.error("❌ OPENROUTER_API_KEY not found in environment variables");
       return null;
     }
 
     // Clean the key (remove any whitespace, quotes, newlines)
-    const cleanKey = key.trim().replace(/['"]/g, '');
-    
+    const cleanKey = key.trim().replace(/['"]/g, "");
+
     // Validate key format
-    if (!cleanKey.startsWith('sk-or-v1-')) {
-      console.error('⚠️  API key format appears incorrect. Should start with "sk-or-v1-"');
-      console.error('   Key preview:', cleanKey.substring(0, 15) + '...');
+    if (!cleanKey.startsWith("sk-or-v1-")) {
+      console.error(
+        '⚠️  API key format appears incorrect. Should start with "sk-or-v1-"',
+      );
+      console.error("   Key preview:", cleanKey.substring(0, 15) + "...");
     }
 
-    console.log('✅ API Key loaded');
-    console.log('   Length:', cleanKey.length);
-    console.log('   Preview:', cleanKey.substring(0, 20) + '...' + cleanKey.substring(cleanKey.length - 5));
-    
+    console.log("✅ API Key loaded");
+    console.log("   Length:", cleanKey.length);
+    console.log(
+      "   Preview:",
+      cleanKey.substring(0, 20) +
+        "..." +
+        cleanKey.substring(cleanKey.length - 5),
+    );
+
     return cleanKey;
   }
 
   async initialize() {
     if (this.initialized) return;
 
-    console.log('\n🔧 Initializing AI Service...');
-    console.log('   Base URL:', this.baseURL);
-    console.log('   Model:', this.model);
-    console.log('   API Key present:', !!this.apiKey);
-    console.log('   Site URL:', process.env.SITE_URL || 'http://localhost:5173');
-    console.log('   Site Name:', process.env.SITE_NAME || 'SummarizerApp');
+    console.log("\n🔧 Initializing AI Service...");
+    console.log("   Base URL:", this.baseURL);
+    console.log("   Model:", this.model);
+    console.log("   API Key present:", !!this.apiKey);
+    console.log(
+      "   Site URL:",
+      process.env.SITE_URL || "http://localhost:5173",
+    );
+    console.log("   Site Name:", process.env.SITE_NAME || "SummarizerApp");
 
     // Test connection
     if (this.apiKey) {
       const testResult = await this.testConnection();
       if (testResult) {
-        console.log('✅ AI Service initialized successfully\n');
+        console.log("✅ AI Service initialized successfully\n");
         this.initialized = true;
       } else {
-        console.error('❌ AI Service initialization failed\n');
+        console.error("❌ AI Service initialization failed\n");
       }
     }
   }
@@ -67,22 +78,27 @@ class AIService {
     try {
       // Validation 1: Check API key
       if (!this.apiKey) {
-        console.error('❌ API key validation failed');
+        console.error("❌ API key validation failed");
         return {
           success: false,
-          error: 'API key not configured. Please set OPENROUTER_API_KEY in your .env file and restart the server.'
+          error:
+            "API key not configured. Please set OPENROUTER_API_KEY in your .env file and restart the server.",
         };
       }
 
       // Validation 2: Check rate limit
       if (this.rateLimitResetTime && Date.now() < this.rateLimitResetTime) {
-        const waitSeconds = Math.ceil((this.rateLimitResetTime - Date.now()) / 1000);
-        console.warn(`⏳ Rate limit active. Please wait ${waitSeconds} seconds.`);
+        const waitSeconds = Math.ceil(
+          (this.rateLimitResetTime - Date.now()) / 1000,
+        );
+        console.warn(
+          `⏳ Rate limit active. Please wait ${waitSeconds} seconds.`,
+        );
         return {
           success: false,
           error: `Rate limit exceeded. Please wait ${waitSeconds} seconds before trying again.`,
           rateLimited: true,
-          retryAfter: waitSeconds
+          retryAfter: waitSeconds,
         };
       }
 
@@ -91,141 +107,152 @@ class AIService {
       if (timeSinceLastRequest < this.minRequestInterval) {
         const waitMs = this.minRequestInterval - timeSinceLastRequest;
         console.log(`⏳ Waiting ${waitMs}ms before next request...`);
-        await new Promise(resolve => setTimeout(resolve, waitMs));
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
       }
 
       // Validation 4: Check text input
-      if (!text || typeof text !== 'string') {
+      if (!text || typeof text !== "string") {
         return {
           success: false,
-          error: 'Invalid text input'
+          error: "Invalid text input",
         };
       }
 
-      const {
-        maxLength = 200,
-        style = 'concise'
-      } = options;
-      
+      const { maxLength = 200, style = "concise" } = options;
+
       // Update last request time
       this.lastRequestTime = Date.now();
 
-      const { systemPrompt, userPrompt } = this.buildEnhancedPrompt(text, maxLength, style);
+      const { systemPrompt, userPrompt } = this.buildEnhancedPrompt(
+        text,
+        maxLength,
+        style,
+      );
 
-      console.log('\n📡 Making API request to OpenRouter...');
-      console.log('   Text length:', text.length, 'characters');
-      console.log('   Word count:', text.split(/\s+/).length, 'words');
-      console.log('   Style:', style);
-      console.log('   Max length:', maxLength, 'words');
-      console.log('   Model:', this.model);
+      console.log("\n📡 Making API request to OpenRouter...");
+      console.log("   Text length:", text.length, "characters");
+      console.log("   Word count:", text.split(/\s+/).length, "words");
+      console.log("   Style:", style);
+      console.log("   Max length:", maxLength, "words");
+      console.log("   Model:", this.model);
 
       // Make API request with detailed headers
       const requestConfig = {
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': process.env.SITE_URL || 'http://localhost:5173',
-          'X-Title': process.env.SITE_NAME || 'SummarizerApp'
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": process.env.SITE_URL || "http://localhost:5173",
+          "X-Title": process.env.SITE_NAME || "SummarizerApp",
         },
         timeout: 45000, // 45 seconds for better results
-        validateStatus: (status) => status < 500 // Don't throw on 4xx errors
+        validateStatus: (status) => status < 500, // Don't throw on 4xx errors
       };
 
       const requestBody = {
         model: this.model,
         messages: [
           {
-            role: 'system',
-            content: systemPrompt
+            role: "system",
+            content: systemPrompt,
           },
           {
-            role: 'user',
-            content: userPrompt
-          }
+            role: "user",
+            content: userPrompt,
+          },
         ],
         temperature: 0.7,
         max_tokens: 2000,
         top_p: 0.95,
         frequency_penalty: 0.5,
-        presence_penalty: 0.3
+        presence_penalty: 0.3,
       };
 
       // Log request details (without full API key)
-      console.log('   Headers:', {
-        'Authorization': `Bearer ${this.apiKey.substring(0, 15)}...`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': requestConfig.headers['HTTP-Referer'],
-        'X-Title': requestConfig.headers['X-Title']
+      console.log("   Headers:", {
+        Authorization: `Bearer ${this.apiKey.substring(0, 15)}...`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": requestConfig.headers["HTTP-Referer"],
+        "X-Title": requestConfig.headers["X-Title"],
       });
 
       const response = await axios.post(
         `${this.baseURL}/chat/completions`,
         requestBody,
-        requestConfig
+        requestConfig,
       );
 
       // Handle different response statuses
       if (response.status === 401) {
-        console.error('❌ Authentication failed - Invalid API key');
+        console.error("❌ Authentication failed - Invalid API key");
         return {
           success: false,
-          error: 'Authentication failed. Your API key is invalid or expired. Please check your OPENROUTER_API_KEY.'
+          error:
+            "Authentication failed. Your API key is invalid or expired. Please check your OPENROUTER_API_KEY.",
         };
       }
 
       if (response.status === 429) {
         // Set rate limit reset time (default 2 minutes if not specified in headers)
-        const retryAfter = response.headers['retry-after'] || response.headers['x-ratelimit-reset'];
+        const retryAfter =
+          response.headers["retry-after"] ||
+          response.headers["x-ratelimit-reset"];
         const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 120000; // 2 minutes default
         this.rateLimitResetTime = Date.now() + waitTime;
-        
+
         const waitMinutes = Math.ceil(waitTime / 60000);
-        console.error(`❌ Rate limit exceeded - waiting ${waitMinutes} minutes`);
-        console.error(`   Reset time: ${new Date(this.rateLimitResetTime).toLocaleTimeString()}`);
-        
+        console.error(
+          `❌ Rate limit exceeded - waiting ${waitMinutes} minutes`,
+        );
+        console.error(
+          `   Reset time: ${new Date(this.rateLimitResetTime).toLocaleTimeString()}`,
+        );
+
         return {
           success: false,
           error: `Rate limit exceeded. Please wait ${waitMinutes} minute(s) before trying again. The free tier has limited requests per minute.`,
           rateLimited: true,
-          retryAfter: Math.ceil(waitTime / 1000)
+          retryAfter: Math.ceil(waitTime / 1000),
         };
       }
 
       if (response.status >= 400) {
-        console.error('❌ API error:', response.status, response.data);
+        console.error("❌ API error:", response.status, response.data);
         return {
           success: false,
-          error: response.data?.error?.message || `API error: ${response.status}`
+          error:
+            response.data?.error?.message || `API error: ${response.status}`,
         };
       }
 
       // Validate response structure
       if (!response.data?.choices?.[0]?.message?.content) {
-        console.error('❌ Invalid response structure:', response.data);
+        console.error("❌ Invalid response structure:", response.data);
         return {
           success: false,
-          error: 'Invalid response from AI service'
+          error: "Invalid response from AI service",
         };
       }
 
       let summary = response.data.choices[0].message.content.trim();
       const summaryWordCount = summary.split(/\s+/).length;
-      
+
       // Enforce word limit - truncate if AI exceeded it
       if (summaryWordCount > maxLength) {
-        console.warn(`⚠️  AI exceeded word limit (${summaryWordCount} > ${maxLength}). Truncating...`);
+        console.warn(
+          `⚠️  AI exceeded word limit (${summaryWordCount} > ${maxLength}). Truncating...`,
+        );
         const words = summary.split(/\s+/);
-        summary = words.slice(0, maxLength).join(' ') + '...';
+        summary = words.slice(0, maxLength).join(" ") + "...";
         console.log(`   Truncated to ${maxLength} words`);
       }
-      
+
       const finalWordCount = summary.split(/\s+/).length;
-      
-      console.log('✅ Summary generated successfully');
-      console.log('   Summary length:', summary.length, 'characters');
-      console.log('   Summary words:', finalWordCount, 'words');
-      console.log('   Word limit:', maxLength, 'words');
-      console.log('   Within limit:', finalWordCount <= maxLength ? '✓' : '✗');
+
+      console.log("✅ Summary generated successfully");
+      console.log("   Summary length:", summary.length, "characters");
+      console.log("   Summary words:", finalWordCount, "words");
+      console.log("   Word limit:", maxLength, "words");
+      console.log("   Within limit:", finalWordCount <= maxLength ? "✓" : "✗");
 
       return {
         success: true,
@@ -233,9 +260,8 @@ class AIService {
         originalLength: text.split(/\s+/).length,
         summaryLength: finalWordCount,
         model: this.model,
-        withinLimit: finalWordCount <= maxLength
+        withinLimit: finalWordCount <= maxLength,
       };
-
     } catch (error) {
       return this.handleError(error);
     }
@@ -357,7 +383,7 @@ class AIService {
 - Present data and metrics prominently
 - Highlight risks and opportunities clearly
 - Include actionable recommendations
-- Close with next steps or critical decisions needed`
+- Close with next steps or critical decisions needed`,
     };
 
     // Enhanced user prompts with specific formatting instructions
@@ -429,40 +455,41 @@ ${text}
 **TEXT TO SUMMARIZE:**
 ${text}
 
-**YOUR EXECUTIVE SUMMARY (${maxLength} words):**`
+**YOUR EXECUTIVE SUMMARY (${maxLength} words):**`,
     };
 
     return {
       systemPrompt: systemPrompts[style] || systemPrompts.concise,
-      userPrompt: userPrompts[style] || userPrompts.concise
+      userPrompt: userPrompts[style] || userPrompts.concise,
     };
   }
 
   handleError(error) {
-    console.error('\n❌ AI Summarization Error:');
-    
+    console.error("\n❌ AI Summarization Error:");
+
     // Network errors
-    if (error.code === 'ECONNABORTED') {
-      console.error('   Error: Request timeout');
+    if (error.code === "ECONNABORTED") {
+      console.error("   Error: Request timeout");
       return {
         success: false,
-        error: 'Request timeout. The AI service took too long to respond. Please try again.'
+        error:
+          "Request timeout. The AI service took too long to respond. Please try again.",
       };
     }
 
-    if (error.code === 'ENOTFOUND') {
-      console.error('   Error: Network error - Cannot reach OpenRouter');
+    if (error.code === "ENOTFOUND") {
+      console.error("   Error: Network error - Cannot reach OpenRouter");
       return {
         success: false,
-        error: 'Network error. Please check your internet connection.'
+        error: "Network error. Please check your internet connection.",
       };
     }
 
-    if (error.code === 'ECONNREFUSED') {
-      console.error('   Error: Connection refused');
+    if (error.code === "ECONNREFUSED") {
+      console.error("   Error: Connection refused");
       return {
         success: false,
-        error: 'Cannot connect to AI service. Please try again later.'
+        error: "Cannot connect to AI service. Please try again later.",
       };
     }
 
@@ -471,131 +498,153 @@ ${text}
       const status = error.response.status;
       const errorData = error.response.data;
 
-      console.error('   Status:', status);
-      console.error('   Response:', JSON.stringify(errorData, null, 2));
+      console.error("   Status:", status);
+      console.error("   Response:", JSON.stringify(errorData, null, 2));
 
       if (status === 401) {
         return {
           success: false,
-          error: 'Invalid API key. Please verify your OPENROUTER_API_KEY in the .env file. Get your key from: https://openrouter.ai/keys'
+          error:
+            "Invalid API key. Please verify your OPENROUTER_API_KEY in the .env file. Get your key from: https://openrouter.ai/keys",
         };
       }
 
       if (status === 402) {
         return {
           success: false,
-          error: 'Insufficient credits. Please add credits to your OpenRouter account.'
+          error:
+            "Insufficient credits. Please add credits to your OpenRouter account.",
         };
       }
 
       if (status === 429) {
         // Set rate limit reset time
-        const retryAfter = error.response.headers['retry-after'] || error.response.headers['x-ratelimit-reset'];
+        const retryAfter =
+          error.response.headers["retry-after"] ||
+          error.response.headers["x-ratelimit-reset"];
         const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 120000; // 2 minutes default
         this.rateLimitResetTime = Date.now() + waitTime;
-        
+
         const waitMinutes = Math.ceil(waitTime / 60000);
-        console.error(`   Rate limit will reset at: ${new Date(this.rateLimitResetTime).toLocaleTimeString()}`);
-        
+        console.error(
+          `   Rate limit will reset at: ${new Date(this.rateLimitResetTime).toLocaleTimeString()}`,
+        );
+
         return {
           success: false,
           error: `Rate limit exceeded. Please wait ${waitMinutes} minute(s). Free tier models have strict rate limits. Consider waiting or using a different model.`,
           rateLimited: true,
-          retryAfter: Math.ceil(waitTime / 1000)
+          retryAfter: Math.ceil(waitTime / 1000),
         };
       }
 
       if (status === 503) {
         return {
           success: false,
-          error: 'AI service temporarily unavailable. Please try again in a moment.'
+          error:
+            "AI service temporarily unavailable. Please try again in a moment.",
         };
       }
 
       return {
         success: false,
-        error: errorData?.error?.message || `API error (${status}). Please try again.`
+        error:
+          errorData?.error?.message ||
+          `API error (${status}). Please try again.`,
       };
     }
 
     // Unknown errors
-    console.error('   Unknown error:', error.message);
-    console.error('   Stack:', error.stack);
+    console.error("   Unknown error:", error.message);
+    console.error("   Stack:", error.stack);
 
     return {
       success: false,
-      error: 'An unexpected error occurred. Please try again or contact support.'
+      error:
+        "An unexpected error occurred. Please try again or contact support.",
     };
   }
 
   async testConnection() {
-    console.log('\n🧪 Testing OpenRouter API connection...');
-    
+    console.log("\n🧪 Testing OpenRouter API connection...");
+
     try {
       const testText = `Artificial intelligence has revolutionized modern technology by enabling computers to perform complex tasks that previously required human intelligence. Machine learning algorithms can analyze vast amounts of data to identify patterns, make predictions, and improve their performance over time without explicit programming. Deep learning, a subset of machine learning, uses neural networks with multiple layers to process information in ways similar to the human brain. These technologies are now used in various applications including image recognition, natural language processing, autonomous vehicles, medical diagnosis, and financial forecasting. The rapid advancement in AI capabilities has raised important questions about ethics, privacy, and the future of work.`;
-      
-      const result = await this.generateSummary(testText, { maxLength: 80, style: 'concise' });
-      
+
+      const result = await this.generateSummary(testText, {
+        maxLength: 80,
+        style: "concise",
+      });
+
       if (result.success) {
-        console.log('✅ Test passed! AI service is working.');
-        console.log('   Test summary:', result.summary);
-        console.log('   Original words:', result.originalLength);
-        console.log('   Summary words:', result.summaryLength);
-        console.log('   Compression:', ((result.summaryLength / result.originalLength) * 100).toFixed(1) + '%');
+        console.log("✅ Test passed! AI service is working.");
+        console.log("   Test summary:", result.summary);
+        console.log("   Original words:", result.originalLength);
+        console.log("   Summary words:", result.summaryLength);
+        console.log(
+          "   Compression:",
+          ((result.summaryLength / result.originalLength) * 100).toFixed(1) +
+            "%",
+        );
         return true;
       } else {
-        console.error('❌ Test failed:', result.error);
+        console.error("❌ Test failed:", result.error);
         return false;
       }
     } catch (error) {
-      console.error('❌ Test failed with exception:', error.message);
+      console.error("❌ Test failed with exception:", error.message);
       return false;
     }
   }
 
   // Get service status
   getStatus() {
-    const isRateLimited = this.rateLimitResetTime && Date.now() < this.rateLimitResetTime;
-    const resetIn = isRateLimited ? Math.ceil((this.rateLimitResetTime - Date.now()) / 1000) : 0;
-    
+    const isRateLimited =
+      this.rateLimitResetTime && Date.now() < this.rateLimitResetTime;
+    const resetIn = isRateLimited
+      ? Math.ceil((this.rateLimitResetTime - Date.now()) / 1000)
+      : 0;
+
     return {
       initialized: this.initialized,
       apiKeyPresent: !!this.apiKey,
-      apiKeyValid: this.apiKey && this.apiKey.startsWith('sk-or-v1-'),
+      apiKeyValid: this.apiKey && this.apiKey.startsWith("sk-or-v1-"),
       baseURL: this.baseURL,
       model: this.model,
-      supportedStyles: ['concise', 'detailed', 'bullet', 'executive'],
+      supportedStyles: ["concise", "detailed", "bullet", "executive"],
       rateLimited: isRateLimited,
       rateLimitResetIn: resetIn,
-      rateLimitResetTime: isRateLimited ? new Date(this.rateLimitResetTime).toLocaleTimeString() : null
+      rateLimitResetTime: isRateLimited
+        ? new Date(this.rateLimitResetTime).toLocaleTimeString()
+        : null,
     };
   }
-  
+
   // Clear rate limit (for manual reset)
   clearRateLimit() {
     this.rateLimitResetTime = null;
-    console.log('✅ Rate limit manually cleared');
+    console.log("✅ Rate limit manually cleared");
   }
 
   // Get available models (for future expansion)
   getAvailableModels() {
     return [
-      { 
-        id: 'google/gemini-2.0-flash-exp:free', 
-        name: 'Google Gemini Flash 2.0 (Free)', 
-        description: 'Best free model with fast response times',
-        recommended: true
+      {
+        id: "google/gemini-2.0-flash-exp:free",
+        name: "Google Gemini Flash 2.0 (Free)",
+        description: "Best free model with fast response times",
+        recommended: true,
       },
-      { 
-        id: 'meta-llama/llama-3.2-3b-instruct:free', 
-        name: 'Meta Llama 3.2 (Free)', 
-        description: 'Good quality free alternative'
+      {
+        id: "meta-llama/llama-3.2-3b-instruct:free",
+        name: "Meta Llama 3.2 (Free)",
+        description: "Good quality free alternative",
       },
-      { 
-        id: 'qwen/qwen-2-7b-instruct:free', 
-        name: 'Qwen 2 (Free)', 
-        description: 'Alibaba\'s free model'
-      }
+      {
+        id: "qwen/qwen-2-7b-instruct:free",
+        name: "Qwen 2 (Free)",
+        description: "Alibaba's free model",
+      },
     ];
   }
 }

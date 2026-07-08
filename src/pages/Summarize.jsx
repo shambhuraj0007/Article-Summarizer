@@ -88,7 +88,7 @@ const Summarize = () => {
         
         const token = localStorage.getItem('token');
         const response = await axios.post(
-          `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080'}/summaries/generate/url`,
+          `${import.meta.env.VITE_BACKEND_URL || ''}/summaries/generate/url`,
           {
             url: formData.url,
             maxLength: formData.maxLength,
@@ -116,7 +116,7 @@ const Summarize = () => {
         fileFormData.append('style', formData.style);
         
         const response = await axios.post(
-          `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080'}/summaries/generate/file`,
+          `${import.meta.env.VITE_BACKEND_URL || ''}/summaries/generate/file`,
           fileFormData,
           {
             headers: {

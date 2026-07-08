@@ -1,6 +1,5 @@
 const Summary = require('../Models/Summary');
 const aiService = require('../Services/aiService');
-const redisClient = require('../Services/redisClient');
 const queueService = require('../Services/queueService');
 const extractionService = require('../Services/extractionService'); // Only for URL extraction
 
@@ -45,19 +44,7 @@ const generateAISummary = async (req, res) => {
     console.log(`   Style: ${style || 'concise'}`);
     console.log(`   Max length: ${maxLength || 200}`);
 
-    // Check Redis cache first
-    const cacheKey = redisClient.generateCacheKey(text, { maxLength, style });
-    const cachedResult = await redisClient.get(cacheKey);
 
-    if (cachedResult) {
-      console.log('✅ Returning cached summary');
-      return res.status(200).json({
-        success: true,
-        summary: cachedResult.summary,
-        statistics: cachedResult.statistics,
-        cached: true
-      });
-    }
 
     // Check AI service status
     const serviceStatus = aiService.getStatus();
@@ -103,7 +90,7 @@ const generateAISummary = async (req, res) => {
       }
     };
 
-    await redisClient.set(cacheKey, responseData, 86400); // Cache for 24 hours
+
 
     res.status(200).json({
       success: true,

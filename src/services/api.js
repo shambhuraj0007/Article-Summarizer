@@ -2,7 +2,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 
 // Base URL from environment variable
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 // Create axios instance
 const api = axios.create({

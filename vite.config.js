@@ -12,6 +12,10 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": "http://localhost:8080",
+      "/auth": "http://localhost:8080",
+      "/products": "http://localhost:8080",
+      "/summaries": "http://localhost:8080",
+      "/ping": "http://localhost:8080",
     },
   },
   esbuild: {
