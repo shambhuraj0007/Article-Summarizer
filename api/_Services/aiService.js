@@ -5,7 +5,7 @@ class AIService {
     // Load and validate API key immediately
     this.apiKey = this.loadApiKey();
     this.baseURL = "https://openrouter.ai/api/v1";
-    this.model = "deepseek/deepseek-chat-v3-0324"; // Best free model
+    this.model = "google/gemini-2.5-flash:free"; // Best free model with 1M+ context window
     this.initialized = false;
 
     // Rate limiting tracking
