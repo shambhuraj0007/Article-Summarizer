@@ -17,47 +17,53 @@ const PORT = process.env.PORT || 8080;
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-// CORS setup - Handle dynamic Vercel preview deployments
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, curl)
-    if (!origin) return callback(null, true);
+// CORS setup - Automatically allow same-origin requests and whitelisted domains
+const corsOptionsDelegate = function (req, callback) {
+  const origin = req.header('Origin');
+  const host = req.header('Host');
+  const proto = req.header('x-forwarded-proto') || 'http';
+  
+  // Check if it is a same-origin request
+  const isSameOrigin = origin && (
+    origin === `${proto}://${host}` || 
+    origin === `http://${host}` || 
+    origin === `https://${host}`
+  );
 
-    // Define allowed patterns
-    const allowedOrigins = [
-      "http://localhost:5173",
-      "https://shambhuraj.vercel.app",
-      "https://tasks-xi-rosy.vercel.app",
-      "https://article-summarizer-1y53d7thy-shambhuraj0007s-projects.vercel.app",
-      /^https:\/\/shambhuraj-[a-z0-9]+-shambhuraj0007s-projects\.vercel\.app$/,
-      /^https:\/\/.*\.vercel\.app$/ // Allow all Vercel preview deployments
-    ];
+  // Define allowed cross-origin patterns (e.g. for external development or staging)
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "https://shambhuraj.vercel.app",
+    "https://tasks-xi-rosy.vercel.app",
+    /^https:\/\/.*\.vercel\.app$/ // Allow all Vercel deployments
+  ];
 
-    // Check if origin matches any pattern
-    const isAllowed = allowedOrigins.some(allowed => {
-      if (typeof allowed === 'string') {
-        return allowed === origin;
-      }
-      // RegExp pattern
-      return allowed.test(origin);
-    });
+  const isAllowedOrigin = origin && allowedOrigins.some(allowed => {
+    if (typeof allowed === 'string') return allowed === origin;
+    return allowed.test(origin);
+  });
 
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      console.warn('⚠️ CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  exposedHeaders: ["Content-Length", "X-Request-Id"],
-  maxAge: 86400 // 24 hours
-}));
+  let corsOptions;
+  if (!origin || isSameOrigin || isAllowedOrigin) {
+    corsOptions = { 
+      origin: true, 
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+      exposedHeaders: ["Content-Length", "X-Request-Id"],
+      maxAge: 86400 // 24 hours
+    };
+  } else {
+    console.warn('⚠️ CORS blocked origin:', origin);
+    corsOptions = { origin: false };
+  }
+  callback(null, corsOptions);
+};
+
+app.use(cors(corsOptionsDelegate));
 
 // Handle preflight requests globally
-app.options('*', cors());
+app.options('*', cors(corsOptionsDelegate));
 
 // Test route
 app.get('/ping', (req, res) => {
