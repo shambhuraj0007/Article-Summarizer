@@ -9,23 +9,23 @@
       "destination": "/api/index.js"
     },
     {
-      "source": "/auth/(.*)",
+      "source": "/api/:path*",
       "destination": "/api/index.js"
     },
     {
-      "source": "/products/(.*)",
+      "source": "/auth/:path*",
       "destination": "/api/index.js"
     },
     {
-      "source": "/summaries/(.*)",
+      "source": "/products/:path*",
       "destination": "/api/index.js"
     },
     {
-      "source": "/api/(.*)",
+      "source": "/summaries/:path*",
       "destination": "/api/index.js"
     },
     {
-      "source": "/((?!api|auth|products|summaries|ping|assets|public|.*\\..*).*)$",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ],
