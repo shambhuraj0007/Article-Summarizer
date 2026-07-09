@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 
-const mongo_url = process.env.MONGO_URI;
+let mongo_url = process.env.MONGO_URI;
+
+if (mongo_url) {
+  // Strip any accidental surrounding quotes from the connection string
+  mongo_url = mongo_url.trim().replace(/^["']|["']$/g, '');
+}
 
 if (!mongo_url) {
   console.warn("⚠️  MONGO_URI not set. Skipping MongoDB connection.");
