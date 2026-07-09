@@ -5,7 +5,7 @@ class AIService {
     // Load and validate API key immediately
     this.apiKey = this.loadApiKey();
     this.baseURL = "https://openrouter.ai/api/v1";
-    this.model = "google/gemini-2.5-flash:free"; // Best free model with 1M+ context window
+    this.model = "openrouter/free"; // Dynamic router that auto-selects a working free model
     this.initialized = false;
 
     // Rate limiting tracking
@@ -161,7 +161,7 @@ class AIService {
           },
         ],
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: Math.min(2000, Math.max(1000, Math.ceil(maxLength * 2.5))),
         top_p: 0.95,
         frequency_penalty: 0.5,
         presence_penalty: 0.3,
