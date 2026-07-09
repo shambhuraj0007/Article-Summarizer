@@ -22,16 +22,17 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, curl)
     if (!origin) return callback(null, true);
-    
+
     // Define allowed patterns
     const allowedOrigins = [
       "http://localhost:5173",
-      "https://shambhuraj.vercel.app/",
+      "https://shambhuraj.vercel.app",
       "https://tasks-xi-rosy.vercel.app",
+      "https://article-summarizer-1y53d7thy-shambhuraj0007s-projects.vercel.app",
       /^https:\/\/shambhuraj-[a-z0-9]+-shambhuraj0007s-projects\.vercel\.app$/,
       /^https:\/\/.*\.vercel\.app$/ // Allow all Vercel preview deployments
     ];
-    
+
     // Check if origin matches any pattern
     const isAllowed = allowedOrigins.some(allowed => {
       if (typeof allowed === 'string') {
@@ -40,7 +41,7 @@ app.use(cors({
       // RegExp pattern
       return allowed.test(origin);
     });
-    
+
     if (isAllowed) {
       callback(null, true);
     } else {
@@ -71,7 +72,7 @@ app.use('/summaries', SummaryRouter);
 // Comprehensive diagnostic endpoint
 app.get('/api/diagnostics', async (req, res) => {
   const aiService = require('./_Services/aiService');
-  
+
   const diagnostics = {
     timestamp: new Date().toISOString(),
     server: {
@@ -102,16 +103,16 @@ app.get('/api/diagnostics', async (req, res) => {
 // Test AI with detailed logging
 app.get('/api/test-ai', async (req, res) => {
   const aiService = require('./_Services/aiService');
-  
+
   console.log('\n🧪 Running AI service test...');
-  
+
   const testResult = await aiService.testConnection();
   const status = aiService.getStatus();
 
   res.json({
     success: testResult,
-    message: testResult 
-      ? '✅ AI service is working correctly!' 
+    message: testResult
+      ? '✅ AI service is working correctly!'
       : '❌ AI service test failed. Check server logs for details.',
     status: status,
     timestamp: new Date().toISOString()
