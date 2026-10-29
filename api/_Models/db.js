@@ -1,23 +1,36 @@
 const mongoose = require("mongoose");
 
-let mongo_url = process.env.MONGO_URI;
+let mongoUrl = process.env.MONGO_URI;
 
-if (mongo_url) {
-  // Strip any accidental surrounding quotes from the connection string
-  mongo_url = mongo_url.trim().replace(/^["']|["']$/g, '');
+if (mongoUrl) {
+  mongoUrl = mongoUrl.trim().replace(/^['"]|['"]$/g, "");
 }
 
-if (!mongo_url) {
+if (!mongoUrl) {
   console.warn("⚠️  MONGO_URI not set. Skipping MongoDB connection.");
 } else {
+  mongoose.set("strictQuery", true);
+
   mongoose
-    .connect(mongo_url)
+    .connect(mongoUrl, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 15000,
+      connectTimeoutMS: 15000,
+      maxPoolSize: 10,
+      retryWrites: true,
+      retryReads: true,
+      autoIndex: true,
+    })
     .then(() => {
       console.log("MongoDB Connected...");
     })
     .catch((err) => {
-      console.log("MongoDB Connection Error: ", err);
+      console.error("MongoDB Connection Error: ", err.message);
     });
+
+  mongoose.connection.on("disconnected", () => {
+    console.warn("MongoDB disconnected. Attempting reconnect...");
+  });
 }
 
 module.exports = mongoose;
